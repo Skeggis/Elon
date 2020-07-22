@@ -1,61 +1,61 @@
-/*
+// /*
 
-*/
+// */
 
-int upDownStepPin = 5;
-int upDownDirPin = 6; //LOW => down, HIGH => up
-int upDownEnablePin = 2;
+// int upDownStepPin = 5;
+// int upDownDirPin = 6; //LOW => down, HIGH => up
+// int upDownEnablePin = 2;
 
-int leftRightStepPin = 7;
-int leftRightDirPin = 8; //HIGH => left, LOW => right
+// int leftRightStepPin = 7;
+// int leftRightDirPin = 8; //HIGH => left, LOW => right
 
-// 0 => resting position
-// 1 => topLeft
-// 2 => topRight
-// 3 => bottomRight
-// 4 => bottomLeft
-int position = 0;
+// // 0 => resting position
+// // 1 => topLeft
+// // 2 => topRight
+// // 3 => bottomRight
+// // 4 => bottomLeft
+// int position = 0;
 
-int upDownSteps = 50;
-int leftRightSteps = 50;
+// int upDownSteps = 50;
+// int leftRightSteps = 50;
 
-int directionSpeed = 5000; //Microseconds
+// int directionSpeed = 5000; //Microseconds
 
-bool test = true;
+// bool test = true;
 
-void setup() {
-  Serial.begin(9600);
-  pinMode(upDownStepPin, OUTPUT); 
-  pinMode(upDownDirPin, OUTPUT);
-  pinMode(leftRightStepPin, OUTPUT);
-  pinMode(leftRightDirPin, OUTPUT);
-  pinMode(upDownEnablePin, OUTPUT);
-  digitalWrite(upDownEnablePin, HIGH);
-  //digitalWrite(leftRightStepPin, HIGH);
-  //digitalWrite(upDownStepPin, HIGH);
+// void setup() {
+//   Serial.begin(9600);
+//   pinMode(upDownStepPin, OUTPUT); 
+//   pinMode(upDownDirPin, OUTPUT);
+//   pinMode(leftRightStepPin, OUTPUT);
+//   pinMode(leftRightDirPin, OUTPUT);
+//   pinMode(upDownEnablePin, OUTPUT);
+//   digitalWrite(upDownEnablePin, HIGH);
+//   //digitalWrite(leftRightStepPin, HIGH);
+//   //digitalWrite(upDownStepPin, HIGH);
   
-}
+// }
 
-void loop() {
+// void loop() {
 
-  if(test){
-    Serial.println("Started loop");
-    test = false;
-    delay(5000);
-    digitalWrite(upDownEnablePin, LOW)
-  }
+//   if(test){
+//     Serial.println("Started loop");
+//     test = false;
+//     delay(5000);
+//     digitalWrite(upDownEnablePin, LOW);
+//   }
   
-  shootTopLeft();
-  delay(1000);
-  shootTopRight();
-  delay(1000);
-  shootBottomRight();
-  delay(1000);
-  shootBottomLeft();
-  delay(1000);
+//   shootTopLeft();
+//   delay(1000);
+//   shootTopRight();
+//   delay(1000);
+//   shootBottomRight();
+//   delay(1000);
+//   shootBottomLeft();
+//   delay(1000);
   
   
-}
+// }
 
 void shootTopLeft(){ 
   digitalWrite(upDownDirPin, HIGH); 
