@@ -17,10 +17,11 @@ int leftRightDirPin = 8; //HIGH => left, LOW => right
 // 4 => bottomLeft
 int position = 0;
 
-int upDownSteps = 50;
-int leftRightSteps = 50;
+int maxUpDownSteps = 50;//Max amount of steps upDown motor can take from the center in either direction.
+int maxLeftRightSteps = 50;//Max amount of steps leftDown motor can take from the center in either direction.
 
-int directionSpeed = 5000; //Microseconds
+int upDownSteps = 0;//The steps upDown motor should take in the current direction
+int leftRightSteps = 0;//The steps leftRight motor should take in the current direction
 
 bool test = true;
 
@@ -34,8 +35,8 @@ String newShot = "";
 String shootingQueue = "";
 
 unsigned long shotDelay = 0;
-int leftRight = 0;
-int upDown = 0;
+int leftRight = 0;//From app, 0 is leftmost and maxLeftRight*2 is rightmost.
+int upDown = 0;//From app, 0 is upmost and maxUpDown*2 is downmost.
 int motorSpeed = 0;
 
 unsigned long previousTime = 0;
@@ -127,9 +128,24 @@ void configureShot(){
         break;
       case 1:
         leftRight = value;
+        if(leftRight < 0){ leftRight = 0;}
+        else if (leftRight > maxLeftRightSteps*2) { leftRight = maxLeftRightSteps; }
+        //Turn motor left.
+        if(leftRight < maxLeftRightSteps){ leftRightSteps = maxLeftRightSteps - leftRight; }
+        //Turn motor right / stay in center if leftRightSteps == maxLeftRightSteps
+        else { leftRightSteps = leftRight - maxLeftRightSteps; }
         break;
       case 2:
         upDown = value;
+        
+        if(upDown < 0){upDown = 0;}
+        else if(upDown > maxUpDownSteps*2){upDown = maxUpDownSteps;}
+        //Turn motor up.
+        if(upDown < maxUpDownSteps){ upDownSteps = maxUpDownSteps - upDown; }
+        //Turn motor down / stay in center if upDownSteps == maxUpDownSteps
+        else { upDownSteps = upDown - maxUpDownSteps; }
+
+        
         break;
       case 3:
         motorSpeed = value;
@@ -146,124 +162,55 @@ void configureShot(){
   shoot = true;
   }
 
-  void shootIt(){  
-    if(upDown < 50){
-        if(leftRight < 50){
-            shootTopLeft();
-        } else {
-            shootTopRight();
-        }
-    } else if(upDown > 50){
-        if(leftRight < 50){
-            shootBottomLeft();
-        } else {
-            shootBottomRight();
-        }
-    }
 
-    if(!shooting){
-      Serial.println("Shot fired: " + String(shotDelay) + " " + leftRight + " " + upDown + " " + motorSpeed);
-      shotDelay = 0;
-      leftRight = 0;
-      upDown = 0;
-      motorSpeed = 0;
-      previousTime = 0;
-      shoot = false;
-     }
+unsigned long timeWhenShootingBegan = 0;
+unsigned long movingDelay = 3000;
+
+void setMotorDirections(){
+  if(shooting){
+    if(upDown < 50){ digitalWrite(upDownDirPin, HIGH); } 
+      else {digitalWrite(upDownDirPin, LOW); }
+
+      if(leftRight < 50){digitalWrite(leftRightDirPin, HIGH);  }
+      else { digitalWrite(leftRightDirPin, LOW);  }
+    } else {
+      if(upDown < 50){ digitalWrite(upDownDirPin, LOW); } 
+      else {digitalWrite(upDownDirPin, HIGH); }
+
+      if(leftRight < 50){digitalWrite(leftRightDirPin, LOW);  }
+      else { digitalWrite(leftRightDirPin, HIGH);  }
+      }
   
+  }
+  
+  void shootIt(){  
+    if(!shooting){
+      shooting = true;
+      setMotorDirections();
+      moveDirectionMotors();
+      timeWhenShootingBegan = millis();
+      }
+
+if(millis() - timeWhenShootingBegan > movingDelay && shooting){
+    shooting = false;
+    //shoot
+  Serial.println("FIRE Boy!");
+  setMotorDirections();
+  moveDirectionMotors();
+
+  Serial.println("Shot fired: " + String(shotDelay) + " " + leftRightSteps + " " + upDownSteps + " " + motorSpeed);
+      
+  resetVariablesAfterShooting();
+  } 
 }
 
-// void shootTopLeft(){ 
-//   digitalWrite(upDownDirPin, HIGH); 
-//   digitalWrite(leftRightDirPin, HIGH); 
-  
-//   moveDirectionMotors();
-  
-//   delay(3000);
-//   //shoot
-  
-//   digitalWrite(upDownDirPin, LOW); 
-//   digitalWrite(leftRightDirPin, LOW);
-  
-//   moveDirectionMotors();
-// }
-
-
-// void shootTopRight(){
-//   digitalWrite(upDownDirPin, HIGH);
-//   digitalWrite(leftRightDirPin, LOW);
-  
-//   moveDirectionMotors();
-  
-//   delay(3000);
-  
-//   digitalWrite(upDownDirPin, LOW);
-//   digitalWrite(leftRightDirPin, HIGH);
-  
-//   moveDirectionMotors();
-// }
-
-// void shootBottomRight(){
-//   digitalWrite(upDownDirPin, LOW);
-//   digitalWrite(leftRightDirPin, LOW);
-  
-//   moveDirectionMotors();
-  
-//   delay(3000);
-  
-//   digitalWrite(upDownDirPin, HIGH);
-//   digitalWrite(leftRightDirPin, HIGH);
-  
-//   moveDirectionMotors();
-// }
-
-// void shootBottomLeft(){
-//   digitalWrite(upDownDirPin, LOW);
-//   digitalWrite(leftRightDirPin, HIGH);
-  
-//   moveDirectionMotors();
-  
-//   delay(3000);
-  
-//   digitalWrite(upDownDirPin, HIGH);
-//   digitalWrite(leftRightDirPin, LOW);
-  
-//   moveDirectionMotors();
-// }
-
-// void moveDirectionMotors(){
-//   if(upDownSteps > leftRightSteps){
-//     for(int i = 0; i<leftRightSteps; i++){
-//       digitalWrite(upDownStepPin, HIGH);
-//       digitalWrite(leftRightStepPin, HIGH);
-//       delayMicroseconds(directionSpeed);
-//       digitalWrite(upDownStepPin, LOW);
-//       digitalWrite(leftRightStepPin, LOW);
-//       delayMicroseconds(directionSpeed);
-//     }
-    
-//     for(int i = 0; i < upDownSteps - leftRightSteps; i++){
-//       digitalWrite(upDownStepPin, HIGH);
-//       delayMicroseconds(directionSpeed);
-//       digitalWrite(upDownStepPin, LOW);
-//       delayMicroseconds(directionSpeed);
-//     }
-//   } else {
-//     for(int i = 0; i<upDownSteps; i++){
-//       digitalWrite(upDownStepPin, HIGH);
-//       digitalWrite(leftRightStepPin, HIGH);
-//       delayMicroseconds(directionSpeed);
-//       digitalWrite(upDownStepPin, LOW);
-//       digitalWrite(leftRightStepPin, LOW);
-//       delayMicroseconds(directionSpeed);
-//     }
-    
-//     for(int i = 0; i< leftRightSteps - upDownSteps; i++){
-//       digitalWrite(leftRightStepPin, HIGH);
-//       delayMicroseconds(directionSpeed);
-//       digitalWrite(leftRightStepPin, LOW);
-//       delayMicroseconds(directionSpeed);
-//     }
-//   }
-
-// }
+void resetVariablesAfterShooting(){
+  shotDelay = 0;
+      leftRightSteps = 0;
+      upDownSteps = 0;
+      motorSpeed = 0;
+      leftRight = 0;
+      upDown = 0;
+      previousTime = 0;
+      shoot = false;
+  }
