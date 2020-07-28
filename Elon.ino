@@ -26,8 +26,9 @@ bool test = true;
 
 /* ------------------- BLE -------------------------*/
 SoftwareSerial HM10(3, 4); // RX = 3, TX = 4
-bool shootersTurnedOn = false; //TODO: change to false when this arduino control when the motors are turned on.
-bool shooting = false;
+bool shootersTurnedOn = true; //TODO: change to false when this arduino control when the motors are turned on.
+bool shooting = false; //Is true when the motors have started moving into position to shoot.
+bool shoot = false; //Is true when a shot has been configured for shooting.
 
 String newShot = "";
 String shootingQueue = "";
@@ -41,7 +42,7 @@ unsigned long previousTime = 0;
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(19200);
   pinMode(upDownStepPin, OUTPUT); 
   pinMode(upDownDirPin, OUTPUT);
   pinMode(leftRightStepPin, OUTPUT);
@@ -57,26 +58,32 @@ Serial.println("HM10 serial started at 9600");
 
 void loop() {
 
-  //if(test){
-    //Serial.println("Started loop");
-    //test = false;
-    //delay(5000);
-    //digitalWrite(upDownEnablePin, LOW);
-  //}
+  if(test){
+    Serial.println("Started loop");
+    test = false;
+    delay(5000);
+    digitalWrite(upDownEnablePin, LOW);
+  }
 
   HM10.listen();
   // if HM10 receives data then read
   while (HM10.available() > 0) { readMessage(); }
-
-  if(shootersTurnedOn && shootingQueue.length() > 0 && !shooting){ configureShot(); } 
-  else if(shootersTurnedOn && shooting && (millis() - previousTime > shotDelay)){ shoot(); }
+  if(shootersTurnedOn && shootingQueue.length() > 0 && !shoot){ configureShot(); } 
+  else if( ( shootersTurnedOn && shoot && (millis() - previousTime > shotDelay) ) || shooting){ shootIt(); }
 }
 
+bool receivingNewShot = false; //Is true if '{' has been received and not '}'.
 void readMessage(){
     char appData = HM10.read(); // save the data in string format, The data received from the app (a single char) 
     //'!' is the signal for play/stop.
     if(appData == '!'){ shootersTurnedOn = !shootersTurnedOn; } 
-    else {
+    else if(!receivingNewShot){
+        if(appData == '{'){
+          receivingNewShot = true;
+          newShot += appData;
+          } else { Serial.write(appData); }
+     } 
+     else {
       //First we wait to receive a whole shot {...}, so we save each char
       //in the new_shot string.
       newShot += appData;
@@ -85,6 +92,7 @@ void readMessage(){
       //elon we add the shot (new_shot) to the back of the queue (end of shooting_queue
       //string and clean upp the new_shot string.
       if(appData == '}'){
+        receivingNewShot = false;
         shootingQueue += newShot;
         newShot = "";
         Serial.println("Queue growing larger: " + shootingQueue);
@@ -93,7 +101,6 @@ void readMessage(){
 }
 
 void configureShot(){
-
   //Extract next shot:
   String delimiter = "}";
   int pos = shootingQueue.indexOf(delimiter);
@@ -136,32 +143,34 @@ void configureShot(){
 
   previousTime = millis();
   
-  shooting = true;
+  shoot = true;
   }
 
-  void shoot(){
-    Serial.println("Fire! " + String(shotDelay) + " " + leftRight + " " + upDown + " " + motorSpeed);
-
-  
+  void shootIt(){  
     if(upDown < 50){
-        if(leftRight < 50){
-            shootBottomLeft();
-        } else {
-            shootBottomRight();
-        }
-    } else if(upDown > 50){
         if(leftRight < 50){
             shootTopLeft();
         } else {
             shootTopRight();
         }
+    } else if(upDown > 50){
+        if(leftRight < 50){
+            shootBottomLeft();
+        } else {
+            shootBottomRight();
+        }
     }
-    shooting = false;
-  shotDelay = 0;
-  leftRight = 0;
-  upDown = 0;
-  motorSpeed = 0;
-  previousTime = 0;
+
+    if(!shooting){
+      Serial.println("Shot fired: " + String(shotDelay) + " " + leftRight + " " + upDown + " " + motorSpeed);
+      shotDelay = 0;
+      leftRight = 0;
+      upDown = 0;
+      motorSpeed = 0;
+      previousTime = 0;
+      shoot = false;
+     }
+  
 }
 
 // void shootTopLeft(){ 

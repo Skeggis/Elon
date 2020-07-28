@@ -57,23 +57,37 @@
   
 // }
 
+unsigned long timeWhenShootingBegan = 0;
+unsigned long movingDelay = 3000;
+
 void shootTopLeft(){ 
-  digitalWrite(upDownDirPin, HIGH); 
-  digitalWrite(leftRightDirPin, HIGH); 
+  if(!shooting){
+    Serial.println("Move to TOP LEFT position");
+    shooting = true;
+    timeWhenShootingBegan = millis();
+    digitalWrite(upDownDirPin, HIGH); 
+    digitalWrite(leftRightDirPin, HIGH); 
+    
+    moveDirectionMotors();
+   }
   
-  moveDirectionMotors();
-  
-  delay(3000);
-  //shoot
-  
-  digitalWrite(upDownDirPin, LOW); 
+  if(millis() - timeWhenShootingBegan > movingDelay){
+    shooting = false;
+    //shoot
+    digitalWrite(upDownDirPin, LOW); 
   digitalWrite(leftRightDirPin, LOW);
-  
+  Serial.println("FIRE TOPLEFT!");
   moveDirectionMotors();
+  
+  } 
+  
+  
+  
 }
 
 
 void shootTopRight(){
+  Serial.println("TopRight");
   digitalWrite(upDownDirPin, HIGH);
   digitalWrite(leftRightDirPin, LOW);
   
@@ -88,6 +102,7 @@ void shootTopRight(){
 }
 
 void shootBottomRight(){
+  Serial.println("BottomRight");
   digitalWrite(upDownDirPin, LOW);
   digitalWrite(leftRightDirPin, LOW);
   
@@ -102,6 +117,7 @@ void shootBottomRight(){
 }
 
 void shootBottomLeft(){
+  Serial.println("BottomLeft");
   digitalWrite(upDownDirPin, LOW);
   digitalWrite(leftRightDirPin, HIGH);
   
