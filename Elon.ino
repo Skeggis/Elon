@@ -1,7 +1,13 @@
 /*
-
+TODO: Setup if shot received is damaged then it is discarded.
 */
 #include <SoftwareSerial.h>
+/* ------------------- Shuttle -------------------------*/
+
+const int shuttleFeedingStepPin = 9;
+const int shuttleFeedingDirPin = 10;
+
+/* ------------------- Where to Shoot -------------------------*/
 
 int upDownStepPin = 5;
 int upDownDirPin = 6; //LOW => down, HIGH => up
@@ -26,8 +32,8 @@ int leftRightSteps = 0;//The steps leftRight motor should take in the current di
 bool test = true;
 
 /* ------------------- BLE -------------------------*/
-SoftwareSerial HM10(3, 4); // RX = 3, TX = 4
-bool shootersTurnedOn = true; //TODO: change to false when this arduino control when the motors are turned on.
+SoftwareSerial HM10(0, 1); // RX = 0, TX = 1
+bool shootersTurnedOn = false; //TODO: change to false when this arduino control when the motors are turned on.
 bool shooting = false; //Is true when the motors have started moving into position to shoot.
 bool shoot = false; //Is true when a shot has been configured for shooting.
 
@@ -54,7 +60,11 @@ void setup() {
   //digitalWrite(upDownStepPin, HIGH);
 Serial.println("HM10 serial started at 9600");
   HM10.begin(9600); // set HM10 serial at 9600 baud rate
-  
+
+
+  //Shuttle Setup
+  pinMode(shuttleFeedingStepPin, OUTPUT);
+  pinMode(shuttleFeedingDirPin, OUTPUT);
 }
 
 void loop() {
@@ -77,7 +87,12 @@ bool receivingNewShot = false; //Is true if '{' has been received and not '}'.
 void readMessage(){
     char appData = HM10.read(); // save the data in string format, The data received from the app (a single char) 
     //'!' is the signal for play/stop.
-    if(appData == '!'){ shootersTurnedOn = !shootersTurnedOn; } 
+    if(appData == '!'){ 
+      Serial.println("TURNONSHOOTERS");
+      shootersTurnedOn = true; }
+    else if(appData == '?'){
+      Serial.println("TURNOFFSHOOTERS");
+      shootersTurnedOn = false;} 
     else if(!receivingNewShot){
         if(appData == '{'){
           receivingNewShot = true;
@@ -181,7 +196,7 @@ void setMotorDirections(){
       else { digitalWrite(leftRightDirPin, HIGH);  }
       }
   
-  }
+}
   
   void shootIt(){  
     if(!shooting){
@@ -195,6 +210,8 @@ if(millis() - timeWhenShootingBegan > movingDelay && shooting){
     shooting = false;
     //shoot
   Serial.println("FIRE Boy!");
+  shootShuttle();
+  Serial.println("Back to Basics");
   setMotorDirections();
   moveDirectionMotors();
 
