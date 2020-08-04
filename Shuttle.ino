@@ -45,23 +45,37 @@ int getSpeed(){
   //}
 //}
 
-void shootShuttle(){
-  Serial.println("ShootShuttle");
-  digitalWrite(shuttleFeedingDirPin, LOW); 
 
-  for(int x = 0; x < 220; x++) {
-    digitalWrite(shuttleFeedingStepPin,HIGH); 
-    delayMicroseconds(700); 
-    digitalWrite(shuttleFeedingStepPin,LOW); 
-    delayMicroseconds(700); 
-  }
-  
-  digitalWrite(shuttleFeedingDirPin, HIGH); 
-  
-  for(int x = 0; x < 220; x++) {
-    digitalWrite(shuttleFeedingStepPin,HIGH);
-    delayMicroseconds(700);
-    digitalWrite(shuttleFeedingStepPin,LOW);
-    delayMicroseconds(700);
-  }
+unsigned long shuttleStepSpeed = 700; //Microseconds
+unsigned long timeOfShuttleRun = 0;
+
+bool highShuttleMotors = true;
+int iShuttleMotorStep = 0;
+
+int shuttleSteps = 220;
+
+//Returns 'true' iff moving motors is done!
+bool shootShuttle(){
+  if(millis() - timeOfShuttleRun < shuttleStepSpeed) { return false; }
+
+  if(iShuttleMotorStep == 0) { digitalWrite(shuttleFeedingDirPin, LOW);  }
+  else if(iShuttleMotorStep == shuttleSteps) {digitalWrite(shuttleFeedingDirPin, HIGH); }
+
+  int voltage;
+  if(highShuttleMotors) { voltage = HIGH; }
+  else { voltage = LOW; } 
+  digitalWrite(shuttleFeedingStepPin,voltage);
+
+  highShuttleMotors = !highShuttleMotors;
+  if(highShuttleMotors) { iShuttleMotorStep++; }
+
+  bool doneMoving = iShuttleMotorStep >= shuttleSteps*2;
+
+  timeOfShuttleRun = millis();
+  if(doneMoving){ 
+    timeOfShuttleRun = 0;
+    iShuttleMotorStep = 0;
+    }
+    
+  return doneMoving;
 }
