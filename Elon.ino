@@ -16,13 +16,6 @@ int upDownEnablePin = 2;
 int leftRightStepPin = 7;
 int leftRightDirPin = 8; //HIGH => left, LOW => right
 
-// 0 => resting position
-// 1 => topLeft
-// 2 => topRight
-// 3 => bottomRight
-// 4 => bottomLeft
-int position = 0;
-
 int maxUpDownSteps = 50;//Max amount of steps upDown motor can take from the center in either direction.
 int maxLeftRightSteps = 50;//Max amount of steps leftDown motor can take from the center in either direction.
 
@@ -34,8 +27,12 @@ bool test = true;
 /* ------------------- BLE -------------------------*/
 SoftwareSerial HM10(0, 1); // RX = 0, TX = 1
 bool shootersTurnedOn = false; //TODO: change to false when this arduino control when the motors are turned on.
-bool shooting = false; //Is true when the motors have started moving into position to shoot.
-bool shoot = false; //Is true when a shot has been configured for shooting.
+bool shouldConfigureShot = true; //Is true when a shot needs to be configured
+bool shouldMoveMotorsIntoPositionForShot = false; //Is true when a shot is about to be fired, and we need the upDown/leftRight motors to move shooters to their coorect positions 
+bool shooting = false; //Is true when the motors have started moving into position to shoot and the shuttle should be brought to the shooters
+bool shouldResetAfterShooting = false; //Is true when a shot has been fired and we need the motors to return to neutral position.
+
+bool movingMotors = false; //Is true if one of the shooting steps is turning motors, so the code is not blocking, i.e. direction or shuttle.
 
 String newShot = "";
 String shootingQueue = "";
@@ -49,23 +46,28 @@ unsigned long previousTime = 0;
 
 
 void setup() {
-  Serial.begin(19200);
+  Serial.begin(9600);
+
+  //Shooters Setup
   pinMode(upDownStepPin, OUTPUT); 
   pinMode(upDownDirPin, OUTPUT);
   pinMode(leftRightStepPin, OUTPUT);
   pinMode(leftRightDirPin, OUTPUT);
   pinMode(upDownEnablePin, OUTPUT);
   digitalWrite(upDownEnablePin, HIGH);
-  //digitalWrite(leftRightStepPin, HIGH);
-  //digitalWrite(upDownStepPin, HIGH);
-Serial.println("HM10 serial started at 9600");
-  HM10.begin(9600); // set HM10 serial at 9600 baud rate
 
+  Serial.println("HM10 serial started at 9600");
+  HM10.begin(9600); // set HM10 serial at 9600 baud rate
 
   //Shuttle Setup
   pinMode(shuttleFeedingStepPin, OUTPUT);
   pinMode(shuttleFeedingDirPin, OUTPUT);
 }
+
+
+unsigned long timeWhenShootingBegan = 0;
+unsigned long movingDelay = 3000;
+
 
 void loop() {
 
@@ -79,8 +81,8 @@ void loop() {
   HM10.listen();
   // if HM10 receives data then read
   while (HM10.available() > 0) { readMessage(); }
-  if(shootersTurnedOn && shootingQueue.length() > 0 && !shoot){ configureShot(); } 
-  else if( ( shootersTurnedOn && shoot && (millis() - previousTime > shotDelay) ) || shooting){ shootIt(); }
+
+  if(shootersTurnedOn){ shootingActivity(); }
 }
 
 bool receivingNewShot = false; //Is true if '{' has been received and not '}'.
@@ -170,56 +172,73 @@ void configureShot(){
       }
     }
       Serial.println("Delay for next shot: " + String(shotDelay));
-
-
-  previousTime = millis();
-  
-  shoot = true;
   }
 
-
-unsigned long timeWhenShootingBegan = 0;
-unsigned long movingDelay = 0;
-
-void setMotorDirections(){
-  if(shooting){
-    if(upDown < 50){ digitalWrite(upDownDirPin, HIGH); } 
-      else {digitalWrite(upDownDirPin, LOW); }
-
-      if(leftRight < 50){digitalWrite(leftRightDirPin, HIGH);  }
-      else { digitalWrite(leftRightDirPin, LOW);  }
-    } else {
-      if(upDown < 50){ digitalWrite(upDownDirPin, LOW); } 
-      else {digitalWrite(upDownDirPin, HIGH); }
-
-      if(leftRight < 50){digitalWrite(leftRightDirPin, LOW);  }
-      else { digitalWrite(leftRightDirPin, HIGH);  }
-      }
+void shootingActivity(){
   
-}
-  
-  void shootIt(){  
-    if(!shooting){
-      shooting = true;
-      setMotorDirections();
-      moveDirectionMotors();
-      timeWhenShootingBegan = millis();
-      }
-
-if(millis() - timeWhenShootingBegan > movingDelay && shooting){
-    shooting = false;
-    //shoot
-  Serial.println("FIRE Boy!");
-  shootShuttle();
-  Serial.println("Back to Basics");
-  setMotorDirections();
-  moveDirectionMotors();
-
-  Serial.println("Shot fired: " + String(shotDelay) + " " + leftRightSteps + " " + upDownSteps + " " + motorSpeed);
+  if( shouldConfigureShot && shootingQueue.length() > 0 ){
+       
+      configureShot(); 
+      previousTime = millis();
       
-  resetVariablesAfterShooting();
-  } 
-}
+      shouldMoveMotorsIntoPositionForShot = true;
+      shouldConfigureShot = false;
+      
+    } else if( ( shouldMoveMotorsIntoPositionForShot && (millis() - previousTime > shotDelay) ) ){ 
+
+//From merge conflict
+//unsigned long timeWhenShootingBegan = 0;
+//unsigned long movingDelay = 0;
+
+//void setMotorDirections(){
+//  if(shooting){
+//    if(upDown < 50){ digitalWrite(upDownDirPin, HIGH); } 
+//      else {digitalWrite(upDownDirPin, LOW); }
+
+      if(!movingMotors){
+        movingMotors = true;
+        setDirectionForDirectionMotorsBeforeShot();//Direction_Motors.ino
+        }
+
+          
+      bool doneMoving = moveDirectionMotors();//Direction_Motors.ino
+  
+      if(doneMoving){
+        movingMotors = false;
+        shooting = true;
+        shouldMoveMotorsIntoPositionForShot = false;
+        timeWhenShootingBegan = millis();
+        }
+          
+    } else if(( shooting && millis() - timeWhenShootingBegan > movingDelay)){
+
+      if(!movingMotors){ movingMotors = true;}
+      bool doneMoving = shootShuttle(); //Shuttle.ino
+      
+      if(doneMoving){
+        movingMotors = false;
+        shooting = false;
+        shouldResetAfterShooting = true;
+       }
+       
+    } else if(shouldResetAfterShooting){
+
+
+      if(!movingMotors){
+        movingMotors = true;
+        setDirectionForDirectionMotorsToReturnToNeutral();//Direction_Motors.ino
+        } 
+        
+      bool doneMoving = moveDirectionMotors(); //Direction_Motors.ino
+
+      if(doneMoving){
+        movingMotors = false;
+        resetVariablesAfterShooting();
+        }
+    }
+  
+  }
+ 
 
 void resetVariablesAfterShooting(){
   shotDelay = 0;
@@ -229,5 +248,11 @@ void resetVariablesAfterShooting(){
       leftRight = 0;
       upDown = 0;
       previousTime = 0;
-      shoot = false;
+
+      shootersTurnedOn = false; 
+      
+      shouldConfigureShot = true; //Is true when a shot needs to be configured
+      shooting = false; //Is true when the motors have started moving into position to shoot.
+      shouldMoveMotorsIntoPositionForShot = false; //Is true when a shot is about to be fired, and we need the upDown/leftRight motors to move shooters to their coorect positions 
+      shouldResetAfterShooting = false;
   }
