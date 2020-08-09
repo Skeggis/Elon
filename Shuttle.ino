@@ -47,21 +47,21 @@ int getSpeed(){
 
 void shootShuttle(){
   Serial.println("ShootShuttle");
-  digitalWrite(shuttleFeedingDirPin, LOW); 
+  digitalWrite(shuttleFeedingDirPin, HIGH); 
 
   for(int x = 0; x < 220; x++) {
     digitalWrite(shuttleFeedingStepPin,HIGH); 
-    delayMicroseconds(700); 
+    delayMicroseconds(2000); 
     digitalWrite(shuttleFeedingStepPin,LOW); 
-    delayMicroseconds(700); 
+    delayMicroseconds(2000); 
   }
   
-  digitalWrite(shuttleFeedingDirPin, HIGH); 
+  digitalWrite(shuttleFeedingDirPin, LOW); 
   
   for(int x = 0; x < 220; x++) {
     digitalWrite(shuttleFeedingStepPin,HIGH);
-    delayMicroseconds(700);
+    delayMicroseconds(2000);
     digitalWrite(shuttleFeedingStepPin,LOW);
-    delayMicroseconds(700);
+    delayMicroseconds(2000);
   }
 }

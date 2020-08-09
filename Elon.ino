@@ -179,7 +179,7 @@ void configureShot(){
 
 
 unsigned long timeWhenShootingBegan = 0;
-unsigned long movingDelay = 3000;
+unsigned long movingDelay = 0;
 
 void setMotorDirections(){
   if(shooting){
