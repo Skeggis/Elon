@@ -26,7 +26,8 @@ bool test = true;
 
 /* ------------------- BLE -------------------------*/
 SoftwareSerial HM10(0, 1); // RX = 0, TX = 1
-bool shootersTurnedOn = false; //TODO: change to false when this arduino control when the motors are turned on.
+bool reset = false; //If true then take state as is and return everything to neutral.
+bool shootersTurnedOn = true; //TODO: change to false when this arduino control when the motors are turned on.
 bool shouldConfigureShot = true; //Is true when a shot needs to be configured
 bool shouldMoveMotorsIntoPositionForShot = false; //Is true when a shot is about to be fired, and we need the upDown/leftRight motors to move shooters to their coorect positions 
 bool shooting = false; //Is true when the motors have started moving into position to shoot and the shuttle should be brought to the shooters
@@ -57,7 +58,7 @@ void setup() {
   digitalWrite(upDownEnablePin, HIGH);
 
   Serial.println("HM10 serial started at 9600");
-  HM10.begin(9600); // set HM10 serial at 9600 baud rate
+  HM10.begin(115200); // set HM10 serial at 9600 baud rate
 
   //Shuttle Setup
   pinMode(shuttleFeedingStepPin, OUTPUT);
@@ -66,8 +67,7 @@ void setup() {
 
 
 unsigned long timeWhenShootingBegan = 0;
-unsigned long movingDelay = 3000;
-
+unsigned long movingDelay = 0;
 
 void loop() {
 
@@ -82,8 +82,13 @@ void loop() {
   // if HM10 receives data then read
   while (HM10.available() > 0) { readMessage(); }
 
-  if(shootersTurnedOn){ shootingActivity(); }
+  if(reset){ resetEverything(); }//Reset.ino
+  else {
+    if(shootersTurnedOn){ shootingActivity(); }
+    }
+  
 }
+
 
 bool receivingNewShot = false; //Is true if '{' has been received and not '}'.
 void readMessage(){
@@ -118,7 +123,81 @@ void readMessage(){
     }
 }
 
-void configureShot(){
+void shootingActivity(){
+  
+  if( shouldConfigureShot && shootingQueue.length() > 0 ){
+       //Serial.println("ShouldConfigureShot");
+      configureShot(); 
+      previousTime = millis();
+
+      shouldConfigureShot = false;
+
+      /*------NORMAL-----*/
+      //shouldMoveMotorsIntoPositionForShot = true;
+
+      /*------Skip upDown/LeftRight-----*/
+      shooting = true;
+      
+      
+    } else if( ( shouldMoveMotorsIntoPositionForShot && (millis() - previousTime > shotDelay) ) ){ 
+
+      if(!movingMotors){
+        Serial.println("shouldMoveMotorsIntoPositionForShot");
+        movingMotors = true;
+        setDirectionForDirectionMotorsBeforeShot();//Direction_Motors.ino
+        }
+
+          
+      bool doneMoving = moveDirectionMotors(false);//Direction_Motors.ino
+  
+      if(doneMoving){
+        Serial.println("doneMovingIntoPosition");
+        movingMotors = false;
+        shooting = true;
+        shouldMoveMotorsIntoPositionForShot = false;
+        timeWhenShootingBegan = millis();
+        }
+          
+    } else if(( shooting && millis() - timeWhenShootingBegan > movingDelay)){
+
+      if(!movingMotors){ 
+        Serial.println("Shooting");
+        movingMotors = true;}
+      bool doneMoving = shootShuttle(false); //Shuttle.ino
+      
+      if(doneMoving){
+        Serial.println("DoneShooting");
+        movingMotors = false;
+        shooting = false;
+
+        /*------NORMAL-----*/
+        //shouldResetAfterShooting = true;
+        
+        /*------Skip upDown/LeftRight-----*/
+        resetVariablesAfterShooting();
+       }
+       
+    } else if(shouldResetAfterShooting){
+
+
+      if(!movingMotors){
+        Serial.println("Reset");
+        movingMotors = true;
+        setDirectionForDirectionMotorsToReturnToNeutral();//Direction_Motors.ino
+        } 
+        
+      bool doneMoving = moveDirectionMotors(false); //Direction_Motors.ino
+
+      if(doneMoving){
+        Serial.println("DoneReset");
+        movingMotors = false;
+        resetVariablesAfterShooting();
+        }
+    }
+  
+  }
+
+  void configureShot(){
   //Extract next shot:
   String delimiter = "}";
   int pos = shootingQueue.indexOf(delimiter);
@@ -171,64 +250,7 @@ void configureShot(){
         break;
       }
     }
-      Serial.println("Delay for next shot: " + String(shotDelay));
-  }
-
-void shootingActivity(){
-  
-  if( shouldConfigureShot && shootingQueue.length() > 0 ){
-       
-      configureShot(); 
-      previousTime = millis();
-      
-      shouldMoveMotorsIntoPositionForShot = true;
-      shouldConfigureShot = false;
-      
-    } else if( ( shouldMoveMotorsIntoPositionForShot && (millis() - previousTime > shotDelay) ) ){ 
-
-
-      if(!movingMotors){
-        movingMotors = true;
-        setDirectionForDirectionMotorsBeforeShot();//Direction_Motors.ino
-        }
-
-          
-      bool doneMoving = moveDirectionMotors();//Direction_Motors.ino
-  
-      if(doneMoving){
-        movingMotors = false;
-        shooting = true;
-        shouldMoveMotorsIntoPositionForShot = false;
-        timeWhenShootingBegan = millis();
-        }
-          
-    } else if(( shooting && millis() - timeWhenShootingBegan > movingDelay)){
-
-      if(!movingMotors){ movingMotors = true;}
-      bool doneMoving = shootShuttle(); //Shuttle.ino
-      
-      if(doneMoving){
-        movingMotors = false;
-        shooting = false;
-        shouldResetAfterShooting = true;
-       }
-       
-    } else if(shouldResetAfterShooting){
-
-
-      if(!movingMotors){
-        movingMotors = true;
-        setDirectionForDirectionMotorsToReturnToNeutral();//Direction_Motors.ino
-        } 
-        
-      bool doneMoving = moveDirectionMotors(); //Direction_Motors.ino
-
-      if(doneMoving){
-        movingMotors = false;
-        resetVariablesAfterShooting();
-        }
-    }
-  
+      //Serial.println("Delay for next shot: " + String(shotDelay));
   }
  
 
@@ -241,8 +263,7 @@ void resetVariablesAfterShooting(){
       upDown = 0;
       previousTime = 0;
 
-      shootersTurnedOn = false; 
-      
+      movingMotors = false;
       shouldConfigureShot = true; //Is true when a shot needs to be configured
       shooting = false; //Is true when the motors have started moving into position to shoot.
       shouldMoveMotorsIntoPositionForShot = false; //Is true when a shot is about to be fired, and we need the upDown/leftRight motors to move shooters to their coorect positions 
