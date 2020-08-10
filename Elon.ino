@@ -76,13 +76,32 @@ void loop() {
     test = false;
     delay(5000);
     digitalWrite(upDownEnablePin, LOW);
+
   }
+  digitalWrite(shuttleFeedingDirPin, LOW);
+        for(int i = 0; i<50; i++){
+    digitalWrite(shuttleFeedingStepPin,HIGH);
+    delayMicroseconds(1500);
+    digitalWrite(shuttleFeedingStepPin,LOW);
+    delayMicroseconds(1500);    
+  }
+  delay(1000);
+    digitalWrite(shuttleFeedingDirPin, HIGH);
+        for(int i = 0; i<50; i++){
+    digitalWrite(shuttleFeedingStepPin,HIGH);
+    delayMicroseconds(1500);
+    digitalWrite(shuttleFeedingStepPin,LOW);
+    delayMicroseconds(1500);    
+  }
+  delay(1000);
 
-  HM10.listen();
-  // if HM10 receives data then read
-  while (HM10.available() > 0) { readMessage(); }
+  //HM10.listen();
+//   if HM10 receives data then read
+//  while (HM10.available() > 0) { readMessage(); }
 
-  if(shootersTurnedOn){ shootingActivity(); }
+  //if(shootersTurnedOn){ shootingActivity(); }
+
+
 }
 
 bool receivingNewShot = false; //Is true if '{' has been received and not '}'.
