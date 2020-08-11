@@ -46,8 +46,7 @@ int getSpeed(){
 //}
 
 
-
-unsigned long shuttleStepSpeed = 700; //Microseconds
+unsigned long shuttleStepSpeed = 2000; //Microseconds
 unsigned long timeOfShuttleRun = 0;
 
 bool highShuttleMotors = true;
@@ -55,12 +54,22 @@ int iShuttleMotorStep = 0;
 
 int shuttleSteps = 220;
 
-//Returns 'true' iff moving motors is done!
-bool shootShuttle(){
-  if(millis() - timeOfShuttleRun < shuttleStepSpeed) { return false; }
+bool isShuttleResetting = false;
 
-  if(iShuttleMotorStep == 0) { digitalWrite(shuttleFeedingDirPin, LOW);  }
-  else if(iShuttleMotorStep == shuttleSteps) {digitalWrite(shuttleFeedingDirPin, HIGH); }
+bool getIsShuttleResetting(){ return isShuttleResetting; }
+
+int shuttleForward = HIGH;
+int shuttleBackward = LOW;
+
+//Returns 'true' iff moving motors is done!
+//reset is 'true' iff motors should turn back to neutral
+bool shootShuttle(bool reset){
+  if(micros() - timeOfShuttleRun < shuttleStepSpeed) { return false; }
+
+  if(iShuttleMotorStep == 0) { digitalWrite(shuttleFeedingDirPin, shuttleForward);  }
+  else if(iShuttleMotorStep == shuttleSteps*2) { 
+    isShuttleResetting = true;
+    digitalWrite(shuttleFeedingDirPin, shuttleBackward); }
 
   int voltage;
   if(highShuttleMotors) { voltage = HIGH; }
@@ -68,15 +77,24 @@ bool shootShuttle(){
   digitalWrite(shuttleFeedingStepPin,voltage);
 
   highShuttleMotors = !highShuttleMotors;
-  if(highShuttleMotors) { iShuttleMotorStep++; }
+  if(!reset) { iShuttleMotorStep++; }
+  else { iShuttleMotorStep--; }
 
-  bool doneMoving = iShuttleMotorStep >= shuttleSteps*2;
+  bool doneMoving = iShuttleMotorStep >= shuttleSteps*4;
 
-  timeOfShuttleRun = millis();
+  if(reset){ doneMoving = iShuttleMotorStep <= 0; }
+
+  timeOfShuttleRun = micros();
   if(doneMoving){ 
+    Serial.println("ShuttleSteps: " + String(shuttleSteps) + " i: " + String(iShuttleMotorStep));
     timeOfShuttleRun = 0;
     iShuttleMotorStep = 0;
+    isShuttleResetting = false;
     }
     
   return doneMoving;
 }
+
+void shuttleResetMotorsDirection(){
+      digitalWrite(shuttleFeedingDirPin, shuttleBackward);
+  }
